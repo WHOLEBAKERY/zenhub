@@ -1,16 +1,11 @@
 local Fluent = loadstring(Game:HttpGet("https://raw.githubusercontent.com/discoart/FluentPlus/refs/heads/main/Beta.lua"))()
 
--- Create window
 local Window = Fluent:CreateWindow({
-    Title = "My Script",
-    SubTitle = "Enhanced UI",
+    Title = "Fluent " .. Fluent.Version,
+    SubTitle = "by dawid",
+    TabWidth = 160,
     Size = UDim2.fromOffset(580, 460),
-    Acrylic = true,
-    Theme = "Dark"
+    Acrylic = true, -- The blur may be detectable, setting this to false disables blur entirely
+    Theme = "Dark",
+    MinimizeKey = Enum.KeyCode.LeftControl -- Used when theres no MinimizeKeybind
 })
-
--- Create tab with icon
-local Tab = Window:AddTab({ Title = "Scripts", Icon = "settings" })
-
--- Create section with icon
-local Section = Tab:AddSection("Configuration", "cog")
