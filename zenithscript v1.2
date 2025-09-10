@@ -150,10 +150,261 @@ local Toggle2 = Tabs.Main:AddToggle("MainToggle2", {
 
 -- Buttons on Main
 Tabs.Main:AddButton({
-    Title = "Button 1",
-    Description = "Very important button",
-    Callback = function()
+    Title = "Attach tool",
+    Description = "menu to attach to players",
+    Callback = function()-- Attach Tool GUI with Dodge/Touch + C mini-mode
+local Players = game:GetService("Players")
+local UIS     = game:GetService("UserInputService")
+local lp      = Players.LocalPlayer
+
+-- Cleanup old GUI
+local guiParent = lp:WaitForChild("PlayerGui")
+local old = guiParent:FindFirstChild("AttachToolGui")
+if old then old:Destroy() end
+
+-- Create ScreenGui
+local screen = Instance.new("ScreenGui", guiParent)
+screen.Name = "AttachToolGui"
+
+-- Main Frame
+local frame = Instance.new("Frame", screen)
+frame.Name = "MainFrame"
+frame.Size = UDim2.new(0, 300, 0, 160)
+frame.Position = UDim2.new(0.3, 0, 0.3, 0)
+frame.BackgroundColor3 = Color3.fromRGB(50, 50, 50)
+frame.Active = true
+frame.Draggable = true
+
+-- Helper to create TextButton
+local function mkBtn(props, parent)
+    local btn = Instance.new("TextButton", parent)
+    for k,v in pairs(props) do btn[k] = v end
+    return btn
+end
+
+-- Search Box
+local searchBox = Instance.new("TextBox", frame)
+searchBox.Size = UDim2.new(1, -20, 0, 25)
+searchBox.Position = UDim2.new(0, 10, 0, 10)
+searchBox.PlaceholderText = "Search display name..."
+searchBox.ClearTextOnFocus = false
+searchBox.Font = Enum.Font.SourceSans
+searchBox.TextSize = 18
+searchBox.Text = ""
+
+-- Core UI Buttons
+local selBtn = mkBtn({ Size = UDim2.new(1, -110, 0, 25), Position = UDim2.new(0, 10, 0, 45),
+    BackgroundColor3 = Color3.fromRGB(70,70,70), TextColor3 = Color3.new(1,1,1),
+    Font = Enum.Font.SourceSansBold, TextSize = 18, Text = "Selected: None" }, frame)
+
+local copyBtn = mkBtn({ Size = UDim2.new(0, 80, 0, 25), Position = UDim2.new(1, -90, 0, 45),
+    BackgroundColor3 = Color3.fromRGB(70,70,70), TextColor3 = Color3.new(1,1,1),
+    Font = Enum.Font.SourceSansBold, TextSize = 18, Text = "Copy" }, frame)
+
+local prevBtn = mkBtn({ Size = UDim2.new(0, 40, 0, 30), Position = UDim2.new(0.05, 0, 0.65, 0), Text = "<<" }, frame)
+local nextBtn = mkBtn({ Size = UDim2.new(0, 40, 0, 30), Position = UDim2.new(0.2, 0, 0.65, 0), Text = ">>" }, frame)
+
+local attachBtn = mkBtn({ Size = UDim2.new(0, 100, 0, 30), Position = UDim2.new(0.5, -50, 0.65, 0), Text = "Attach: OFF" }, frame)
+local dirBtn    = mkBtn({ Size = UDim2.new(0, 100, 0, 25), Position = UDim2.new(0.05, 0, 0.45, 0), Text = "Direction: Behind" }, frame)
+
+local distDec = mkBtn({ Size = UDim2.new(0, 20, 0, 20), Position = UDim2.new(0.65, 0, 0.85, 0), Text = "-" }, frame)
+local distBox = Instance.new("TextLabel", frame)
+distBox.Size = UDim2.new(0, 50, 0, 20); distBox.Position = UDim2.new(0.75, 0, 0.85, 0)
+distBox.Text = "5"; distBox.BackgroundTransparency = 1; distBox.Font = Enum.Font.SourceSans; distBox.TextSize = 18; distBox.TextColor3 = Color3.new(1,1,1)
+local distInc = mkBtn({ Size = UDim2.new(0, 20, 0, 20), Position = UDim2.new(0.85, 0, 0.85, 0), Text = "+" }, frame)
+
+local minimizeBtn = mkBtn({ Size = UDim2.new(0, 20, 0, 20), Position = UDim2.new(1, -45, 0, 5),
+    BackgroundColor3 = Color3.fromRGB(80,80,80), TextColor3 = Color3.new(1,1,1),
+    Font = Enum.Font.SourceSansBold, TextSize = 14, Text = "_" }, frame)
+
+local closeBtn = mkBtn({ Size = UDim2.new(0, 20, 0, 20), Position = UDim2.new(1, -25, 0, 5),
+    BackgroundColor3 = Color3.fromRGB(120,40,40), TextColor3 = Color3.new(1,1,1),
+    Font = Enum.Font.SourceSansBold, TextSize = 14, Text = "X" }, frame)
+
+local miniBtn = mkBtn({ Size = UDim2.new(0, 30, 0, 30), Position = frame.Position,
+    BackgroundColor3 = Color3.fromRGB(60,60,60), TextColor3 = Color3.new(1,1,1),
+    Font = Enum.Font.SourceSansBold, TextSize = 20, Text = "A", Visible = false }, screen)
+
+-- New Buttons: Dodge/Touch & C
+local dodgeBtn = mkBtn({ Size = UDim2.new(0, 80, 0, 30), Position = UDim2.new(0.65, 0, 0.65, 0), Text = "DODGE" }, frame)
+local cBtn     = mkBtn({ Size = UDim2.new(0, 20, 0, 20), Position = UDim2.new(1, -65, 0, 5),
+    BackgroundColor3 = Color3.fromRGB(80,80,80), TextColor3 = Color3.new(1,1,1),
+    Font = Enum.Font.SourceSansBold, TextSize = 14, Text = "C" }, frame)
+
+-- State Variables
+local dist = 5
+local attached = false
+local alignPos, alignOri, att0, att1
+local playerList = {} ; local idx = 1 ; local modes = {"behind","front","left","right"} ; local modeIndex = 1
+local returnCF, lastTarget
+local smallMode = false
+local hiddenState = {}
+
+-- Refresh player list
+local function refreshList()
+    playerList = {}
+    local term = searchBox.Text:lower()
+    local hrp = lp.Character and lp.Character:FindFirstChild("HumanoidRootPart")
+    for _,p in ipairs(Players:GetPlayers()) do
+        if p~=lp and p.Character and p.Character:FindFirstChild("HumanoidRootPart") then
+            if term == "" or p.DisplayName:lower():find(term) then
+                local d = hrp and (p.Character.HumanoidRootPart.Position - hrp.Position).Magnitude or math.huge
+                table.insert(playerList,{p=p,d=d})
+            end
+        end
+    end
+    table.sort(playerList,function(a,b) return a.d < b.d end)
+    idx = 1
+    selBtn.Text = #playerList>0 and "Selected: "..playerList[1].p.DisplayName or "Selected: None"
+end
+
+-- Detach attachments
+local function detach()
+    if alignPos then alignPos:Destroy() end
+    if alignOri then alignOri:Destroy() end
+    if att0 then att0:Destroy() end
+    if att1 then att1:Destroy() end
+    attached = false
+    attachBtn.Text = "Attach: OFF"
+end
+
+-- Attach to target player
+local function attachTo(p)
+    local hrp = lp.Character and lp.Character:FindFirstChild("HumanoidRootPart")
+    if hrp and not attached then
+        returnCF = hrp.CFrame
+        lastTarget = p
+    end
+    detach()
+    hrp = lp.Character and lp.Character:FindFirstChild("HumanoidRootPart")
+    local thrp = p.Character and p.Character:FindFirstChild("HumanoidRootPart")
+    if not hrp or not thrp then return end
+    local mode = modes[modeIndex]
+    local offset = Vector3.new(
+        (mode=="left"  and -dist) or (mode=="right" and dist) or 0,
+        0,
+        (mode=="behind" and dist) or (mode=="front" and -dist) or 0
+    )
+    hrp.CFrame = thrp.CFrame * CFrame.new(offset)
+    att0 = Instance.new("Attachment", hrp)
+    att1 = Instance.new("Attachment", thrp) ; att1.Position = offset
+    alignPos = Instance.new("AlignPosition", hrp)
+    alignPos.Attachment0,alignPos.Attachment1 = att0,att1
+    alignPos.Responsiveness,alignPos.MaxForce = 50,1e6
+    alignOri = Instance.new("AlignOrientation", hrp)
+    alignOri.Attachment0,alignOri.Attachment1 = att0,att1
+    alignOri.Responsiveness,alignOri.MaxTorque = 50,1e6
+    attached = true
+    attachBtn.Text = "Attach: ON"
+    dodgeBtn.Text = "DODGE"
+end
+
+-- Dodge / Touch logic
+local function onDodge()
+    if attached and returnCF then
+        detach()
+        local hrp = lp.Character and lp.Character:FindFirstChild("HumanoidRootPart")
+        if hrp then hrp.CFrame = returnCF end
+        dodgeBtn.Text = "TOUCH"
+    elseif dodgeBtn.Text == "TOUCH" and lastTarget then
+        attachTo(lastTarget)
+    end
+end
+
+-- C button toggles mini mode
+local function onC()
+    smallMode = not smallMode
+    if smallMode then
+        -- Hide all except prev, next, dodge, C
+        for _,v in ipairs(frame:GetChildren()) do
+            if v~=prevBtn and v~=nextBtn and v~=dodgeBtn and v~=cBtn then
+                hiddenState[v] = v.Visible
+                v.Visible = false
+            end
+        end
+        frame.Size = UDim2.new(0, 300, 0, 60)
+    else
+        for v,vis in pairs(hiddenState) do
+            if v.Parent==frame then v.Visible = vis end
+        end
+        frame.Size = UDim2.new(0, 300, 0, 160)
+    end
+end
+
+-- Connect events
+Players.PlayerAdded:Connect(refreshList)
+Players.PlayerRemoving:Connect(refreshList)
+lp.CharacterAdded:Connect(function() wait(1) refreshList() end)
+searchBox:GetPropertyChangedSignal("Text"):Connect(refreshList)
+refreshList()
+
+prevBtn.MouseButton1Click:Connect(function()
+    if #playerList>0 then
+        idx = idx>1 and idx-1 or #playerList
+        selBtn.Text = "Selected: "..playerList[idx].p.DisplayName
+        if attached then attachTo(playerList[idx].p) end
+    end
+end)
+nextBtn.MouseButton1Click:Connect(function()
+    if #playerList>0 then
+        idx = idx<#playerList and idx+1 or 1
+        selBtn.Text = "Selected: "..playerList[idx].p.DisplayName
+        if attached then attachTo(playerList[idx].p) end
+    end
+end)
+selBtn.MouseButton1Click:Connect(function() if playerList[idx] then attachTo(playerList[idx].p) end end)
+attachBtn.MouseButton1Click:Connect(function()
+    if attached then detach() elseif playerList[idx] then attachTo(playerList[idx].p) end
+end)
+dirBtn.MouseButton1Click:Connect(function()
+    modeIndex = modeIndex<#modes and modeIndex+1 or 1
+    dirBtn.Text = "Direction: "..(modes[modeIndex]:sub(1,1):upper()..modes[modeIndex]:sub(2))
+    if attached then attachTo(lastTarget) end
+end)
+distDec.MouseButton1Click:Connect(function() if dist>1 then dist-=1 end distBox.Text = tostring(dist) if attached then attachTo(lastTarget) end end)
+distInc.MouseButton1Click:Connect(function() dist+=1 distBox.Text = tostring(dist) if attached then attachTo(lastTarget) end end)
+copyBtn.MouseButton1Click:Connect(function() pcall(function() setclipboard(playerList[idx].p.DisplayName) end) end)
+dodgeBtn.MouseButton1Click:Connect(onDodge)
+cBtn.MouseButton1Click:Connect(onC)
+
+closeBtn.MouseButton1Click:Connect(function() detach() screen:Destroy() end)
+minimizeBtn.MouseButton1Click:Connect(function() frame.Visible=false miniBtn.Position=frame.Position miniBtn.Visible=true end)
+miniBtn.MouseButton1Click:Connect(function() frame.Visible=true miniBtn.Visible=false end)
+
+-- Make frames draggable
+local function makeDraggable(gui)
+    local dragging, dragInput, startPos, origPos
+    gui.InputBegan:Connect(function(i)
+        if i.UserInputType == Enum.UserInputType.MouseButton1 or i.UserInputType == Enum.UserInputType.Touch then
+            dragging = true
+            startPos = i.Position
+            origPos = gui.Position
+            i.Changed:Connect(function() if i.UserInputState == Enum.UserInputState.End then dragging = false end end)
+        end
+    end)
+    gui.InputChanged:Connect(function(i)
+        if i.UserInputType == Enum.UserInputType.MouseMovement or i.UserInputType == Enum.UserInputType.Touch then
+            dragInput = i
+        end
+    end)
+    UIS.InputChanged:Connect(function(i)
+        if dragging and i == dragInput then
+            local delta = i.Position - startPos
+            gui.Position = UDim2.new(origPos.X.Scale, origPos.X.Offset + delta.X,
+                                     origPos.Y.Scale, origPos.Y.Offset + delta.Y)
+        end
+    end)
+end
+
+makeDraggable(frame)
+makeDraggable(miniBtn)
         print("Button 1 clicked!")
+             Fluent:Notify({
+            Title = "Notification",
+            Content = "Attach Tool Active",
+            SubContent = "You can now attach tools to players",
+            Duration = 5 -- lasts 5 seconds
+        })
     end
 })
 
