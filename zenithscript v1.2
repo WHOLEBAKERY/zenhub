@@ -24,11 +24,38 @@ local Tabs = {
     end
 })
 
-local Toggle = Tabs.Main:AddToggle("MyToggle", 
-{
+Tabs.Main:AddToggle({
     Title = "Uni menu", 
     Description = "common universal cheats",
-    Default = false,
+    Default = false
+    Callback = function(state)
+	if state then
+	    print("Toggle On")
+	else
+	    print("Toggle Off")
+        end
+    end 
+})
+
+
+Tabs.Main:AddToggle({
+    Title = " ivisible Safe zone", 
+    Description = "teleports you to a safezone but allows you to see around you",
+    Default = false
+    Callback = function(state)
+	if state then
+	    print("Toggle On")
+	else
+	    print("Toggle Off")
+        end
+    end 
+})
+
+
+Tabs.Main:AddToggle({
+    Title = "Ice breaker", 
+    Description = "allows you to move in some games where your character is frozen",
+    Default = false
     Callback = function(state)
 	if state then
 	    print("Toggle On")
