@@ -14,22 +14,13 @@ local Window = Fluent:CreateWindow({
 local Tabs = {
     Main = Window:AddTab({ Title = "Zenith menus", Icon = "" }),
     Settings = Window:AddTab({ Title = "README/LOGS", Icon = "book-open-text" })
-}
-Tab:Settings({
-    Title = "Notes",
-    Content = "uni script may not work in all games"
+
+    Tabs.Main:AddButton({
+    Title = "Button",
+    Description = "Very important button",
+    Callback = function()
+        print("Hello, world!")
+    end
 })
 
-local Toggle = Tab:AddToggle("MyToggle", 
-{
-    Title = "Attach tool", 
-    Description = "open menu for attaching to players",
-    Default = false
-    Callback = function(state)
-	if state then
-	    print("Toggle On")
-	else
-	    print("Toggle Off")
-        end
-    end 
-})
+    
