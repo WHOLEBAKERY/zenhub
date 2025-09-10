@@ -409,16 +409,242 @@ makeDraggable(miniBtn)
 })
 
 Tabs.Main:AddButton({
-    Title = "Attach tool",
-    Description = "Very important button",
-    Callback = function()
-        print("Attach tool clicked!")
+    Title = "Anchor tool",
+    Description = "menu for attaching you to your current position",
+    Callback = function() -- LocalScript: Freeze Mod Menu (place in StarterPlayer > StarterPlayerScripts)
+
+local Players = game:GetService("Players")
+local RunService = game:GetService("RunService")
+local UserInput = game:GetService("UserInputService")
+local player = Players.LocalPlayer
+
+local function getRootPart(char)
+    return char:FindFirstChild("HumanoidRootPart") or char:FindFirstChild("Torso")
+end
+
+-- State
+local freezeOn = false
+local attached = false
+local markerVisible = false
+local flipped = false
+local marker, weld
+
+-- Create marker
+local function createMarker(cframe)
+    local p = Instance.new("Part")
+    p.Size = Vector3.new(2,0.2,2)
+    p.Anchored = true
+    p.CanCollide = false
+    p.Transparency = 1
+    p.CFrame = cframe
+    p.Name = "FreezeMarker"
+    p.Parent = workspace
+    return p
+end
+
+local function attach()
+    local char = player.Character or player.CharacterAdded:Wait()
+    local root = getRootPart(char)
+    if not root or not marker then return end
+    root.CFrame = marker.CFrame
+    weld = Instance.new("WeldConstraint")
+    weld.Part0 = marker
+    weld.Part1 = root
+    weld.Parent = marker
+    attached = true
+end
+
+local function detach()
+    if weld then weld:Destroy() end
+    weld = nil
+    attached = false
+end
+
+local function toggleFreeze()
+    if not freezeOn then
+        local char = player.Character or player.CharacterAdded:Wait()
+        local root = getRootPart(char)
+        if root then
+            marker = createMarker(root.CFrame)
+            freezeOn = true
+            attach()
+        end
+    else
+        detach()
+        if marker then marker:Destroy() end
+        marker = nil
+        freezeOn = false
+    end
+end
+
+local function toggleAttach()
+    if not freezeOn then return end
+    if attached then
+        detach()
+    else
+        attach()
+    end
+end
+
+local function toggleFlip()
+    flipped = not flipped
+    local char = player.Character
+    local root = char and getRootPart(char)
+    if root then
+        root.CFrame = CFrame.new(root.Position) * CFrame.Angles(math.pi,0,0)
+    end
+    if marker then
+        marker.CFrame = marker.CFrame * CFrame.Angles(math.pi,0,0)
+    end
+end
+
+local function toggleVisibility()
+    markerVisible = not markerVisible
+    if marker then
+        marker.Transparency = markerVisible and 0.3 or 1
+        marker.Color = Color3.fromRGB(170,0,255)
+    end
+end
+
+-- GUI
+local gui = Instance.new("ScreenGui", player:WaitForChild("PlayerGui"))
+gui.Name = "FreezeMenu"
+gui.ResetOnSpawn = false
+
+local frame = Instance.new("Frame")
+frame.Size = UDim2.fromOffset(180, 250)
+frame.Position = UDim2.new(0.05,0,0.2,0)
+frame.BackgroundColor3 = Color3.fromRGB(30,30,30)
+frame.BorderSizePixel = 0
+frame.Active = true
+frame.Draggable = true
+frame.Parent = gui
+
+-- Header
+local header = Instance.new("Frame", frame)
+header.Size = UDim2.new(1,0,0,28)
+header.BackgroundColor3 = Color3.fromRGB(20,20,20)
+header.BorderSizePixel = 0
+
+local title = Instance.new("TextLabel", header)
+title.Size = UDim2.new(1,-60,1,0)
+title.Position = UDim2.fromOffset(8,0)
+title.BackgroundTransparency = 1
+title.Text = "Freeze Menu"
+title.TextColor3 = Color3.fromRGB(255,255,255)
+title.Font = Enum.Font.SourceSansBold
+title.TextXAlignment = Enum.TextXAlignment.Left
+
+local btnClose = Instance.new("TextButton", header)
+btnClose.Size = UDim2.fromOffset(24,24)
+btnClose.Position = UDim2.new(1,-28,0.5,-12)
+btnClose.BackgroundColor3 = Color3.fromRGB(200,50,50)
+btnClose.Text = "X"
+
+local btnMin = Instance.new("TextButton", header)
+btnMin.Size = UDim2.fromOffset(24,24)
+btnMin.Position = UDim2.new(1,-56,0.5,-12)
+btnMin.BackgroundColor3 = Color3.fromRGB(255,165,0)
+btnMin.Text = "–"
+
+-- Buttons container
+local container = Instance.new("Frame", frame)
+container.Size = UDim2.new(1,-20,1,-40)
+container.Position = UDim2.fromOffset(10,34)
+container.BackgroundTransparency = 1
+
+local list = Instance.new("UIListLayout", container)
+list.Padding = UDim.new(0,8)
+
+local function makeButton(text, callback, colorOff, colorOn)
+    local b = Instance.new("TextButton", container)
+    b.Size = UDim2.new(1,0,0,32)
+    b.BackgroundColor3 = colorOff
+    b.TextColor3 = Color3.fromRGB(255,255,255)
+    b.Font = Enum.Font.SourceSansBold
+    b.TextSize = 14
+    b.Text = text .. ": OFF"
+
+    local state = false
+    b.MouseButton1Click:Connect(function()
+        state = not state
+        callback(state)
+        b.Text = text .. ": " .. (state and "ON" or "OFF")
+        b.BackgroundColor3 = state and colorOn or colorOff
+    end)
+
+    return b
+end
+
+-- Buttons
+local freezeBtn = makeButton("Freeze", function(on) toggleFreeze() end,
+    Color3.fromRGB(180,40,40), Color3.fromRGB(40,180,40))
+
+local attachBtn = makeButton("Attach", function(on) toggleAttach() end,
+    Color3.fromRGB(100,100,100), Color3.fromRGB(200,0,200))
+
+local flipBtn = makeButton("Flip", function(on) toggleFlip() end,
+    Color3.fromRGB(60,60,160), Color3.fromRGB(200,120,0))
+
+local visBtn = makeButton("Marker Visible", function(on) toggleVisibility() end,
+    Color3.fromRGB(100,100,100), Color3.fromRGB(170,0,255))
+
+-- Minimized circle
+local mini = Instance.new("TextButton", gui)
+mini.Size = UDim2.fromOffset(44,44)
+mini.Position = UDim2.new(0.05,0,0.2,0)
+mini.BackgroundColor3 = Color3.fromRGB(255,140,0)
+mini.Text = "☰"
+mini.Visible = false
+mini.Active = true
+mini.Draggable = true
+
+btnMin.MouseButton1Click:Connect(function()
+    frame.Visible = false
+    mini.Visible = true
+end)
+mini.MouseButton1Click:Connect(function()
+    frame.Visible = true
+    mini.Visible = false
+end)
+
+btnClose.MouseButton1Click:Connect(function()
+    gui:Destroy()
+    if marker then marker:Destroy() end
+end)
+
+-- Keep character locked while attached
+RunService.Heartbeat:Connect(function()
+    if attached and marker and player.Character then
+        local root = getRootPart(player.Character)
+        if root then
+            root.CFrame = marker.CFrame
+            root.AssemblyLinearVelocity = Vector3.zero
+            root.AssemblyAngularVelocity = Vector3.zero
+        end
+    end
+end)
+
+-- Reattach after respawn
+player.CharacterAdded:Connect(function(char)
+    task.wait(0.2)
+    if freezeOn and marker then
+        attach()
+    end
+end) 
+        print("Anchor Tool clicked!")
+            Fluent:Notify({
+            Title = "Notification",
+            Content = "Anchor Tool Active",
+            SubContent = "You can now anchor any point",
+            Duration = 3 -- lasts 5 seconds
+        })
     end
 })
 
 Tabs.Main:AddButton({
-    Title = "Freeze tool",
-    Description = "Very important button",
+    Title = "Bring tool",
+    Description = "bring players to you",
     Callback = function()
         print("Freeze tool clicked!")
     end
