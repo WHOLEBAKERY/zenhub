@@ -40,6 +40,19 @@ local Tabs = {
     end
 })
 
+Tabs.Main:AddToggle({
+    Title = "Toggle", 
+    Description = "Toggle description",
+    Default = false
+    Callback = function(state)
+	if state then
+	    print("Toggle On")
+	else
+	    print("Toggle Off")
+        end
+    end 
+})
+
 
 
 
