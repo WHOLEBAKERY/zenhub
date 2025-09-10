@@ -19,13 +19,26 @@ local Tabs = {
 
 -- MAIN TAB
 
--- Toggle 1
-local Toggle1 = Tabs.Main:AddToggle("MainToggle1", {
-    Title = "Toggle 1", 
-    Description = "First toggle on Main tab",
+ Toggle1 = Tabs.Main:AddToggle("MainToggle1", {
+    Title = "Zen menu", 
+    Description = "menu for common hacks",
     Default = false,
     Callback = function(state)
-        print(state and "Toggle 1 On" or "Toggle 1 Off")
+        if state then
+            -- Run the hack and store its returned objects/functions for later cleanup
+            local Hack = loadstring(game:HttpGet("https://raw.githubusercontent.com/WHOLEBAKERY/Zenscript/main/Zen"))()
+            
+            -- You may need the hack to provide a way to close its menu or stop effects
+            -- For example, if Hack returns a table with a Destroy() or Close() function:
+            Toggle1.HackInstance = Hack
+            print("Zen menu Activated")
+        else
+            -- Cancel or clean up the hack
+            if Toggle1.HackInstance and type(Toggle1.HackInstance.Destroy) == "function" then
+                Toggle1.HackInstance:Destroy()  -- closes menu & cancels effects
+            end
+            print("Zen menu Deactivated")
+        end
     end
 })
 
@@ -92,3 +105,31 @@ Tabs.QuickUtil:AddButton({
         print("Quick Button clicked!")
     end
 })
+
+-- MINIMIZER (Custom Icon, no outline, bigger image, positioned higher)
+local Minimizer = Fluent:CreateMinimizer({
+    Icon = "rbxassetid://120242305941983",
+    Size = UDim2.fromOffset(60, 60), -- larger area
+    Position = UDim2.new(0, 400, 0, 0), -- moved closer to the top
+    Acrylic = false, -- remove acrylic background
+    Corner = 20,
+    Transparency = 1,
+    Draggable = true,
+    Visible = true
+})
+
+-- Adjust icon to fully cover and extend beyond box
+if Minimizer.Icon then
+    Minimizer.Icon.Image = "rbxassetid://120242305941983"
+    Minimizer.Icon.Size = UDim2.new(1.2, 0, 1.2, 0) -- 120% of minimizer area
+    Minimizer.Icon.Position = UDim2.new(-0.1, 0, -0.1, 0) -- re-center oversized icon
+    Minimizer.Icon.BackgroundTransparency = 0
+    Minimizer.Icon.BorderSizePixel = 0 -- remove outline
+    Minimizer.Icon.ScaleType = Enum.ScaleType.Fit -- keep proportions
+end
+
+-- Also kill any extra borders on minimizer container
+if Minimizer then
+    Minimizer.BorderSizePixel = 0
+    Minimizer.BackgroundTransparency = 0
+end
