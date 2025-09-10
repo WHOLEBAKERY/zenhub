@@ -15,7 +15,21 @@ local Tabs = {
     Main = Window:AddTab({ Title = "Zenith menus", Icon = "" }),
     Settings = Window:AddTab({ Title = "README/LOGS", Icon = "book-open-text" })
 }
-Tab:AddParagraph({
+Tab:Settings({
     Title = "Notes",
-    Content = "This is a paragraph.\nSecond line!"
+    Content = "uni script may not work in all games"
+})
+
+local Toggle = Tab:AddToggle("MyToggle", 
+{
+    Title = "Attach tool", 
+    Description = "open menu for attaching to players",
+    Default = false
+    Callback = function(state)
+	if state then
+	    print("Toggle On")
+	else
+	    print("Toggle Off")
+        end
+    end 
 })
