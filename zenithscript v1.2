@@ -1,62 +1,94 @@
-local Fluent = loadstring(Game:HttpGet("https://raw.githubusercontent.com/discoart/FluentPlus/refs/heads/main/Beta.lua"))()
+local Fluent = loadstring(game:HttpGet("https://raw.githubusercontent.com/discoart/FluentPlus/refs/heads/main/Beta.lua"))()
 
 local Window = Fluent:CreateWindow({
     Title = "Zenscript " .. Fluent.Version,
     SubTitle = "zenith",
     TabWidth = 160,
     Size = UDim2.fromOffset(580, 420),
-    Acrylic = true, -- The blur may be detectable, setting this to false disables blur entirely
+    Acrylic = true, -- Blur effect
     Theme = "Rose",
-    MinimizeKey = Enum.KeyCode.LeftControl -- Used when theres no MinimizeKeybind
+    MinimizeKey = Enum.KeyCode.LeftControl
 })
 
--- Fluent provides Lucide Icons, they are optional
+-- Tabs
 local Tabs = {
-    Main = Window:AddTab({ Title = "Zenith Menus", Icon = "Play" }),
+    Main = Window:AddTab({ Title = "Zenith Menus", Icon = "Play" })
     Settings = Window:AddTab({ Title = "README/LOGS", Icon = "book-open-text" })
-}    
+    QuickUtil = Window:AddTab({ Title = "Quick Util", Icon = "settings" })
+}
 
-    Tabs.Main:AddButton({
-    Title = "Button",
-    Description = "Very important button",
-    Callback = function()
-        print("Hello, world!")
+-- MAIN TAB
+
+-- Toggle 1
+local Toggle1 = Tabs.Main:AddToggle("MainToggle1", {
+    Title = "Toggle 1", 
+    Description = "First toggle on Main tab",
+    Default = false,
+    Callback = function(state)
+        print(state and "Toggle 1 On" or "Toggle 1 Off")
     end
 })
 
- Tabs.Main:AddButton({
+-- Toggle 2
+local Toggle2 = Tabs.Main:AddToggle("MainToggle2", {
+    Title = "Toggle 2", 
+    Description = "Second toggle on Main tab",
+    Default = false,
+    Callback = function(state)
+        print(state and "Toggle 2 On" or "Toggle 2 Off")
+    end
+})
+
+-- Buttons on Main
+Tabs.Main:AddButton({
+    Title = "Button 1",
+    Description = "Very important button",
+    Callback = function()
+        print("Button 1 clicked!")
+    end
+})
+
+Tabs.Main:AddButton({
     Title = "Attach tool",
     Description = "Very important button",
     Callback = function()
-        print("Hello, world!")
+        print("Attach tool clicked!")
     end
 })
 
- Tabs.Main:AddButton({
+Tabs.Main:AddButton({
     Title = "Freeze tool",
     Description = "Very important button",
     Callback = function()
-        print("Hello, world!")
+        print("Freeze tool clicked!")
     end
 })
 
-Tabs.Main:AddToggle({
-    Title = "Toggle", 
-    Description = "Toggle description",
-    Default = false
-    Callback = function(state)
-	if state then
-	    print("Toggle On")
-	else
-	    print("Toggle Off")
-        end
-    end 
+Tabs.Main:AddButton({
+    Title = "Button 2",
+    Description = "Extra button added",
+    Callback = function()
+        print("Button 2 clicked!")
+    end
 })
 
+-- QUICK UTIL TAB
 
+-- Quick Util Toggle
+local QuickToggle = Tabs.QuickUtil:AddToggle("QuickToggle", {
+    Title = "Quick Toggle",
+    Description = "Toggle on Quick Util tab",
+    Default = false,
+    Callback = function(state)
+        print(state and "Quick Toggle On" or "Quick Toggle Off")
+    end
+})
 
-
-
-
-
-    
+-- Quick Util Button
+Tabs.QuickUtil:AddButton({
+    Title = "Quick Button",
+    Description = "Button on Quick Util tab",
+    Callback = function()
+        print("Quick Button clicked!")
+    end
+})
