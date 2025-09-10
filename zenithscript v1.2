@@ -24,4 +24,18 @@ local Tabs = {
     end
 })
 
+local Toggle = Tabs.Main:AddToggle("MyToggle", 
+{
+    Title = "Uni menu", 
+    Description = "common universal cheats",
+    Default = false
+    Callback = function(state)
+	if state then
+	    print("Toggle On")
+	else
+	    print("Toggle Off")
+        end
+    end 
+})
+
     
