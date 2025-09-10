@@ -12,7 +12,7 @@ local Window = Fluent:CreateWindow({
 
 -- Fluent provides Lucide Icons, they are optional
 local Tabs = {
-    Main = Window:AddTab({ Title = "Zanith Menus", Icon = "Play" }),
+    Main = Window:AddTab({ Title = "Zenith Menus", Icon = "Play" }),
     Settings = Window:AddTab({ Title = "README/LOGS", Icon = "book-open-text" })
 }    
 
@@ -24,18 +24,15 @@ local Tabs = {
     end
 })
 
-Tabs.Main:AddToggle({
-    Title = "Uni menu", 
-    Description = "common universal cheats",
-    Default = false,
-    Callback = function(state)
-	if state then
-	    print("Toggle On")
-	else
-	    print("Toggle Off")
-        end
-    end 
+ Tabs.Main:AddButton({
+    Title = "Button",
+    Description = "Very important button",
+    Callback = function()
+        print("Hello, world!")
+    end
 })
+
+
 
 
     
