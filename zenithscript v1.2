@@ -930,7 +930,140 @@ local QuickToggle = Tabs.QuickUtil:AddToggle("QuickToggle", {
 Tabs.QuickUtil:AddButton({
     Title = "Ink game tele",
     Description = "menu to teleport in ink game and win",
-    Callback = function()
+    Callback = function() local Players = game:GetService("Players")
+local player = Players.LocalPlayer
+
+local function getHRP()
+    local char = player.Character or player.CharacterAdded:Wait()
+    return char:WaitForChild("HumanoidRootPart")
+end
+
+local lastPos
+local MENU_WIDTH, MENU_HEIGHT, BUTTON_HEIGHT = 200, 160, 30
+
+local screenGui = Instance.new("ScreenGui")
+screenGui.Name = "TeleportMenuGui"
+screenGui.ResetOnSpawn = false
+screenGui.Parent = player:WaitForChild("PlayerGui")
+
+local menu = Instance.new("Frame")
+menu.Name = "TeleportMenu"
+menu.Size = UDim2.new(0, MENU_WIDTH, 0, MENU_HEIGHT)
+menu.Position = UDim2.new(0.5, -MENU_WIDTH/2, 0.5, -MENU_HEIGHT/2)
+menu.BackgroundColor3 = Color3.fromRGB(30, 30, 30)
+menu.Active = true
+menu.Draggable = true
+menu.Parent = screenGui
+Instance.new("UICorner", menu).CornerRadius = UDim.new(0, 8)
+
+local titleBar = Instance.new("Frame")
+titleBar.Size = UDim2.new(1, 0, 0, 24)
+titleBar.BackgroundTransparency = 1
+titleBar.Parent = menu
+
+local title = Instance.new("TextLabel")
+title.Size = UDim2.new(0.6, 0, 1, 0)
+title.Position = UDim2.new(0, 8, 0, 0)
+title.BackgroundTransparency = 1
+title.Text = "Teleport Menu"
+title.TextColor3 = Color3.new(1,1,1)
+title.Font = Enum.Font.SourceSansBold
+title.TextSize = 18
+title.TextXAlignment = Enum.TextXAlignment.Left
+title.Parent = titleBar
+
+local closeBtn = Instance.new("TextButton")
+closeBtn.Size = UDim2.new(0, 24, 0, 24)
+closeBtn.Position = UDim2.new(1, -28, 0, 0)
+closeBtn.BackgroundTransparency = 1
+closeBtn.Text = "X"
+closeBtn.TextColor3 = Color3.new(1,1,1)
+closeBtn.Font = Enum.Font.SourceSansBold
+closeBtn.TextSize = 18
+closeBtn.Parent = titleBar
+
+local minBtn = Instance.new("TextButton")
+minBtn.Size = UDim2.new(0, 24, 0, 24)
+minBtn.Position = UDim2.new(1, -56, 0, 0)
+minBtn.BackgroundTransparency = 1
+minBtn.Text = "-"
+minBtn.TextColor3 = Color3.new(1,1,1)
+minBtn.Font = Enum.Font.SourceSansBold
+minBtn.TextSize = 18
+minBtn.Parent = titleBar
+
+local function makeTeleportRow(label, yOffset, target)
+    local btn = Instance.new("TextButton")
+    btn.Size = UDim2.new(0, MENU_WIDTH - 50, 0, BUTTON_HEIGHT)
+    btn.Position = UDim2.new(0, 8, 0, yOffset)
+    btn.BackgroundColor3 = Color3.fromRGB(50, 50, 50)
+    btn.TextColor3 = Color3.new(1,1,1)
+    btn.Font = Enum.Font.SourceSans
+    btn.TextSize = 16
+    btn.Text = label
+    btn.Parent = menu
+
+    local ret = Instance.new("TextButton")
+    ret.Size = UDim2.new(0, 30, 0, BUTTON_HEIGHT)
+    ret.Position = UDim2.new(0, MENU_WIDTH - 40, 0, yOffset)
+    ret.BackgroundColor3 = Color3.fromRGB(200,50,50)
+    ret.TextColor3 = Color3.new(1,1,1)
+    ret.Font = Enum.Font.SourceSansBold
+    ret.TextSize = 18
+    ret.Text = "C"
+    ret.Parent = menu
+
+    btn.MouseButton1Click:Connect(function()
+        lastPos = getHRP().Position
+        getHRP().CFrame = CFrame.new(target)
+    end)
+    ret.MouseButton1Click:Connect(function()
+        if lastPos then
+            getHRP().CFrame = CFrame.new(lastPos)
+        end
+    end)
+end
+
+makeTeleportRow("Redlight",    40,  Vector3.new(-45.45, 1024.76, 137.14))
+makeTeleportRow("Jump Rope",   80,  Vector3.new(728.95, 197.14, 920.46))
+makeTeleportRow("Glass Bridge",120, Vector3.new(-197.33, 520.73, -1531.36))
+makeTeleportRow("Guard lock",  160, Vector3.new(197.47, 56.51, 56.09))
+
+-- Minimized pink button as TextButton for click events
+local circle = Instance.new("TextButton")
+circle.Name = "MinimizedButton"
+circle.Size = UDim2.new(0, 32, 0, 32)
+circle.BackgroundColor3 = Color3.fromRGB(255,105,180)
+circle.Text = ""
+circle.Visible = false
+circle.Active = true
+circle.Draggable = true
+circle.Parent = screenGui
+Instance.new("UICorner", circle).CornerRadius = UDim.new(1,0)
+
+minBtn.MouseButton1Click:Connect(function()
+    menu.Visible = false
+    local mPos = menu.Position
+    circle.Position = UDim2.new(
+        mPos.X.Scale, mPos.X.Offset + MENU_WIDTH/2 - 16,
+        mPos.Y.Scale, mPos.Y.Offset + MENU_HEIGHT/2 - 16
+    )
+    circle.Visible = true
+end)
+
+closeBtn.MouseButton1Click:Connect(function()
+    screenGui:Destroy()
+end)
+
+circle.MouseButton1Click:Connect(function()
+    local cPos = circle.Position
+    menu.Position = UDim2.new(
+        cPos.X.Scale, cPos.X.Offset - MENU_WIDTH/2 + 16,
+        cPos.Y.Scale, cPos.Y.Offset - MENU_HEIGHT/2 + 16
+    )
+    menu.Visible = true
+    circle.Visible = false
+end) 
         print("Quick Button clicked!")
     end
 })
