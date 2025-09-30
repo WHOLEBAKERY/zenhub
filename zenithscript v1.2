@@ -1,10 +1,11 @@
--- zenscript 3-tab UI
+-- zenscript 3-tab UI with Safe Zone, No Clip, Infinite Jump, Super Speed
 local Library = loadstring(game:HttpGet("https://raw.githubusercontent.com/WHOLEBAKERY/zenlib/refs/heads/main/zenlib"))()
 
 local Window = Library.Window("Zenscript UI")
 
 local Players = game:GetService("Players")
 local UIS = game:GetService("UserInputService")
+local RunService = game:GetService("RunService")
 local player = Players.LocalPlayer
 local playerGui = player:WaitForChild("PlayerGui")
 
@@ -14,6 +15,9 @@ screenGui.ResetOnSpawn = false
 screenGui.Parent = playerGui
 screenGui.ZIndexBehavior = Enum.ZIndexBehavior.Sibling
 
+-- ======================
+-- Safe Zone Variables
+-- ======================
 local active, savedCF = false, nil
 local platform, walls, props = nil, {}, {}
 
@@ -35,7 +39,6 @@ local function buildCourtyard(y, size, wallH)
     platform.CanCollide = true
     platform.Transparency = 1
     platform.Parent = workspace
-
     -- Walls
     for _, d in ipairs({
         {size,wallH,2,0,y+wallH/2,half},
@@ -52,10 +55,17 @@ local function buildCourtyard(y, size, wallH)
         w.Parent = workspace
         table.insert(walls, w)
     end
-
-    -- Props, fire, trees, flowers, etc. (original Safe Zone logic)
-    -- For brevity, you can include your full courtyard code here if needed
+    -- Props, fire, trees, flowers, etc. can go here
 end
+
+-- ======================
+-- Functional Variables
+-- ======================
+local noclipEnabled = false
+local infJumpEnabled = false
+local superSpeedEnabled = false
+local normalWalkSpeed = 16
+local superSpeedValue = 50
 
 -- ======================
 -- Tab 1: Quick Util
@@ -63,24 +73,20 @@ end
 local QuickTab = Window.CreateTab("Quick Util")
 QuickTab.CreateDivider("Common Hacks Here")
 
--- Placeholder: Infinite Jump Toggle
+-- Infinite Jump Toggle
 QuickTab.CreateToggle("Infinite Jump", function(state)
-    if state then
-        print("[Quick Util] Infinite Jump ON (placeholder)")
-    else
-        print("[Quick Util] Infinite Jump OFF (placeholder)")
-    end
+    infJumpEnabled = state
+    print("[Quick Util] Infinite Jump:", state and "ON" or "OFF")
 end)
 
--- Placeholder: Attach Button
+-- Attach Button placeholder
 QuickTab.CreateButton("Attach", function()
     print("[Quick Util] Attach button pressed (placeholder)")
 end)
 
--- Safe Zone Button Toggle (full functionality)
+-- Safe Zone Button Toggle
 QuickTab.CreateToggle("Safe Zone Button", function(state)
     if state then
-        -- Create draggable button if it doesn't exist
         if not screenGui:FindFirstChild("DragButton") then
             local btn = Instance.new("TextButton")
             btn.Name = "DragButton"
@@ -107,12 +113,10 @@ QuickTab.CreateToggle("Safe Zone Button", function(state)
             label.Selectable = false
             label.ZIndex = 11
 
-            -- Button click: Safe Zone build/destroy
             btn.MouseButton1Click:Connect(function()
                 local char = player.Character
                 local hrp = char and char:FindFirstChild("HumanoidRootPart")
                 if not hrp then return end
-
                 if not active then
                     savedCF = hrp.CFrame
                     buildCourtyard(1000,80,25)
@@ -131,19 +135,15 @@ QuickTab.CreateToggle("Safe Zone Button", function(state)
                 if inp.UserInputType == Enum.UserInputType.Touch or inp.UserInputType == Enum.UserInputType.MouseButton1 then
                     dragging, dragStart, startPos = true, inp.Position, btn.Position
                     inp.Changed:Connect(function()
-                        if inp.UserInputState == Enum.UserInputState.End then
-                            dragging = false
-                        end
+                        if inp.UserInputState == Enum.UserInputState.End then dragging = false end
                     end)
                 end
             end)
-
             btn.InputChanged:Connect(function(inp)
                 if inp.UserInputType == Enum.UserInputType.Touch or inp.UserInputType == Enum.UserInputType.MouseMovement then
                     dragInput = inp
                 end
             end)
-
             UIS.InputChanged:Connect(function(inp)
                 if inp == dragInput and dragging then
                     local delta = inp.Position - dragStart
@@ -155,19 +155,15 @@ QuickTab.CreateToggle("Safe Zone Button", function(state)
             end)
         end
     else
-        -- Remove button
         local btn = screenGui:FindFirstChild("DragButton")
         if btn then btn:Destroy() end
     end
 end)
 
--- Placeholder: No Clip Toggle
+-- No Clip Toggle
 QuickTab.CreateToggle("No Clip", function(state)
-    if state then
-        print("[Quick Util] No Clip ON (placeholder)")
-    else
-        print("[Quick Util] No Clip OFF (placeholder)")
-    end
+    noclipEnabled = state
+    print("[Quick Util] No Clip:", state and "ON" or "OFF")
 end)
 
 -- ======================
@@ -176,27 +172,20 @@ end)
 local ZenithTab = Window.CreateTab("Zenith")
 ZenithTab.CreateDivider("Zenith Hacks")
 
--- Placeholder: Speed Toggle
-ZenithTab.CreateToggle("Speed", function(state)
-    if state then
-        print("[Zenith] Speed ON (placeholder)")
-    else
-        print("[Zenith] Speed OFF (placeholder)")
-    end
+-- Super Speed Toggle
+ZenithTab.CreateToggle("Super Speed", function(state)
+    superSpeedEnabled = state
+    print("[Zenith] Super Speed:", state and "ON" or "OFF")
 end)
 
--- Placeholder: Freeze Button
+-- Freeze Button placeholder
 ZenithTab.CreateButton("Freeze", function()
     print("[Zenith] Freeze button pressed (placeholder)")
 end)
 
--- Placeholder: ESP Toggle
+-- ESP Toggle placeholder
 ZenithTab.CreateToggle("ESP", function(state)
-    if state then
-        print("[Zenith] ESP ON (placeholder)")
-    else
-        print("[Zenith] ESP OFF (placeholder)")
-    end
+    print("[Zenith] ESP:", state and "ON (placeholder)" or "OFF (placeholder)")
 end)
 
 -- ======================
@@ -205,7 +194,7 @@ end)
 local InkTab = Window.CreateTab("Ink Game")
 InkTab.CreateDivider("Game Utilities")
 
--- Placeholder: Teleport Button
+-- Teleport Button placeholder
 InkTab.CreateButton("Teleport", function()
     print("[Ink Game] Teleport button pressed (placeholder)")
 end)
@@ -215,4 +204,41 @@ end)
 -- ======================
 ZenithTab.CreateKeybind("Toggle UI", Enum.KeyCode.RightAlt, function()
     Library:ToggleUI()
+end)
+
+-- ======================
+-- Functional Logic Loops
+-- ======================
+-- Infinite Jump
+UIS.JumpRequest:Connect(function()
+    if infJumpEnabled then
+        local hum = player.Character and player.Character:FindFirstChildOfClass("Humanoid")
+        if hum then hum:ChangeState(Enum.HumanoidStateType.Jumping) end
+    end
+end)
+
+-- No Clip
+RunService.Stepped:Connect(function()
+    if noclipEnabled then
+        local char = player.Character
+        if char then
+            for _, part in pairs(char:GetDescendants()) do
+                if part:IsA("BasePart") then
+                    part.CanCollide = false
+                end
+            end
+        end
+    end
+end)
+
+-- Super Speed
+RunService.RenderStepped:Connect(function()
+    local hum = player.Character and player.Character:FindFirstChildOfClass("Humanoid")
+    if hum then
+        if superSpeedEnabled then
+            hum.WalkSpeed = 50
+        else
+            hum.WalkSpeed = normalWalkSpeed
+        end
+    end
 end)
