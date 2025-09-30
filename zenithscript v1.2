@@ -1,94 +1,83 @@
--- LocalScript (StarterPlayerScripts or StarterGui)
+-- zenscript
+-- Load Library
+local Library = loadstring(game:HttpGet("https://raw.githubusercontent.com/stysscythe/script/main/LibTest.lua"))()
 
--- Load the fixed ZenScript library
-local Library = loadstring(game:HttpGet("https://raw.githubusercontent.com/WHOLEBAKERY/zenlib/refs/heads/main/zenlib"))()
+-- Create Main Window
+local Window = Library.Window('Zenscript UI')
 
--- Create the main window
-Library:Window("ZenScript")
+-- Create Tabs
+local BadTab = Window.CreateTab('Bad')
+local GoodTab = Window.CreateTab('Good')
 
 -- =====================
--- Tab 1: Zone
+-- BAD TAB (Hacks etc.)
 -- =====================
-local ZoneTab = Library.CreateTab("Zone")
+BadTab.CreateDivider("Fun but risky stuff")
 
--- Infinite Jump
-ZoneTab:CreateToggle("Infinite Jump", function(state)
+-- ESP Toggle
+BadTab.CreateToggle("ESP", function(state)
     if state then
-        _G.InfJumpEnabled = true
-        game:GetService("UserInputService").JumpRequest:Connect(function()
-            if _G.InfJumpEnabled then
-                local plr = game.Players.LocalPlayer
-                local hum = plr.Character and plr.Character:FindFirstChildOfClass("Humanoid")
-                if hum then
-                    hum.Jump = true
-                end
-            end
-        end)
+        print("ESP Enabled")
     else
-        _G.InfJumpEnabled = false
+        print("ESP Disabled")
     end
 end)
 
--- No Clip
-local noclipEnabled = false
-ZoneTab:CreateToggle("No Clip", function(state)
-    noclipEnabled = state
+-- No Clip Toggle
+BadTab.CreateToggle("No Clip", function(state)
+    if state then
+        print("No Clip Enabled")
+    else
+        print("No Clip Disabled")
+    end
 end)
 
--- Heartbeat for NoClip
-game:GetService("RunService").Stepped:Connect(function()
-    if noclipEnabled then
-        local char = game.Players.LocalPlayer.Character
-        if char then
-            for _, part in pairs(char:GetChildren()) do
-                if part:IsA("BasePart") then
-                    part.CanCollide = false
-                end
-            end
-        end
-    else
-        local char = game.Players.LocalPlayer.Character
-        if char then
-            for _, part in pairs(char:GetChildren()) do
-                if part:IsA("BasePart") then
-                    part.CanCollide = true
-                end
-            end
-        end
-    end
+-- Speed Slider
+BadTab.CreateSlider("Speed", 16, 100, function(speed)
+    print("Walkspeed set to: " .. speed)
+    game.Players.LocalPlayer.Character.Humanoid.WalkSpeed = speed
+end)
+
+-- Button Example
+BadTab.CreateButton("Crash Yourself", function()
+    print("This would run a crash function here.")
 end)
 
 -- =====================
--- Tab 2: Shane
+-- GOOD TAB (Helpful stuff)
 -- =====================
-local ShaneTab = Library.CreateTab("Shane")
+GoodTab.CreateDivider("Safe utilities")
 
--- ESP Button
-ShaneTab:CreateButton("ESP", function()
-    for _, player in pairs(game.Players:GetPlayers()) do
-        if player ~= game.Players.LocalPlayer then
-            local highlight = Instance.new("Highlight")
-            highlight.Parent = player.Character or player.CharacterAdded:Wait()
-            highlight.FillColor = Color3.fromRGB(255, 0, 0)
-            highlight.OutlineColor = Color3.fromRGB(0, 0, 0)
-            highlight.DepthMode = Enum.HighlightDepthMode.AlwaysOnTop
-        end
-    end
-    print("ESP Enabled")
+-- Rejoin Button
+GoodTab.CreateButton("Rejoin Server", function()
+    local ts = game:GetService("TeleportService")
+    local p = game.Players.LocalPlayer
+    ts:Teleport(game.PlaceId, p)
 end)
 
--- Float Button
-ShaneTab:CreateButton("Float", function()
-    local plr = game.Players.LocalPlayer
-    local char = plr.Character
-    if char then
-        local root = char:FindFirstChild("HumanoidRootPart")
-        if root and not root:FindFirstChild("FloatForce") then
-            local bodyForce = Instance.new("BodyForce")
-            bodyForce.Name = "FloatForce"
-            bodyForce.Force = Vector3.new(0, workspace.Gravity * root:GetMass(), 0)
-            bodyForce.Parent = root
-            print("Float Enabled")
-        end
+-- FPS Toggle (prints only, placeholder)
+GoodTab.CreateToggle("Show FPS", function(state)
+    if state then
+        print("FPS Display On")
+    else
+        print("FPS Display Off")
     end
+end)
+
+-- Jump Power Slider
+GoodTab.CreateSlider("Jump Power", 50, 200, function(power)
+    print("Jump Power set to: " .. power)
+    game.Players.LocalPlayer.Character.Humanoid.JumpPower = power
+end)
+
+-- Chat Logger Button
+GoodTab.CreateButton("Enable Chat Logger", function()
+    print("Chat logger enabled (placeholder).")
+end)
+
+-- =====================
+-- Universal Controls
+-- =====================
+GoodTab.CreateKeybind("Toggle UI", Enum.KeyCode.RightAlt, function()
+    Library:ToggleUI()
 end)
