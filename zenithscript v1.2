@@ -1,83 +1,97 @@
 -- zenscript
--- Load Library
-local Library = loadstring(game:HttpGet("https://raw.githubusercontent.com/stysscythe/script/main/LibTest.lua"))()
+-- Load your custom library from zenlib
+local Library = loadstring(game:HttpGet("https://raw.githubusercontent.com/WHOLEBAKERY/zenlib/refs/heads/main/zenlib"))()
 
 -- Create Main Window
-local Window = Library.Window('Zenscript UI')
+local Window = Library.Window("Zenscript UI")
 
 -- Create Tabs
-local BadTab = Window.CreateTab('Bad')
-local GoodTab = Window.CreateTab('Good')
+local BadTab = Window.CreateTab("Bad")
+local GoodTab = Window.CreateTab("Good")
 
--- =====================
--- BAD TAB (Hacks etc.)
--- =====================
-BadTab.CreateDivider("Fun but risky stuff")
+-- ========== BAD TAB ==========
+
+BadTab.CreateDivider("Dangerous Features")
 
 -- ESP Toggle
 BadTab.CreateToggle("ESP", function(state)
     if state then
-        print("ESP Enabled")
+        print("[Bad] ESP enabled")
+        -- TODO: insert ESP enabling logic here
     else
-        print("ESP Disabled")
+        print("[Bad] ESP disabled")
+        -- TODO: disable ESP logic
     end
 end)
 
 -- No Clip Toggle
 BadTab.CreateToggle("No Clip", function(state)
     if state then
-        print("No Clip Enabled")
+        print("[Bad] No Clip enabled")
+        -- TODO: activate no-clip mode
     else
-        print("No Clip Disabled")
+        print("[Bad] No Clip disabled")
+        -- TODO: deactivate no-clip mode
     end
 end)
 
 -- Speed Slider
-BadTab.CreateSlider("Speed", 16, 100, function(speed)
-    print("Walkspeed set to: " .. speed)
-    game.Players.LocalPlayer.Character.Humanoid.WalkSpeed = speed
+BadTab.CreateSlider("Speed", 16, 200, function(val)
+    print("[Bad] Setting WalkSpeed to:", val)
+    local plr = game.Players.LocalPlayer
+    if plr and plr.Character and plr.Character:FindFirstChild("Humanoid") then
+        plr.Character.Humanoid.WalkSpeed = val
+    end
 end)
 
--- Button Example
-BadTab.CreateButton("Crash Yourself", function()
-    print("This would run a crash function here.")
+-- Kill/Crash Button (for testing)
+BadTab.CreateButton("Crash Self", function()
+    print("[Bad] Crash Self button pressed")
+    -- Example “crash” code:
+    -- while true do end
 end)
 
--- =====================
--- GOOD TAB (Helpful stuff)
--- =====================
-GoodTab.CreateDivider("Safe utilities")
+-- ========== GOOD TAB ==========
 
--- Rejoin Button
+GoodTab.CreateDivider("Utilities & Safe Stuff")
+
+-- Rejoin Server Button
 GoodTab.CreateButton("Rejoin Server", function()
-    local ts = game:GetService("TeleportService")
+    print("[Good] Rejoining server …")
+    local TeleportService = game:GetService("TeleportService")
     local p = game.Players.LocalPlayer
-    ts:Teleport(game.PlaceId, p)
+    TeleportService:Teleport(game.PlaceId, p)
 end)
 
--- FPS Toggle (prints only, placeholder)
+-- FPS Toggle (placeholder)
 GoodTab.CreateToggle("Show FPS", function(state)
     if state then
-        print("FPS Display On")
+        print("[Good] FPS display ON")
+        -- TODO: show FPS overlay
     else
-        print("FPS Display Off")
+        print("[Good] FPS display OFF")
+        -- TODO: hide FPS overlay
     end
 end)
 
 -- Jump Power Slider
-GoodTab.CreateSlider("Jump Power", 50, 200, function(power)
-    print("Jump Power set to: " .. power)
-    game.Players.LocalPlayer.Character.Humanoid.JumpPower = power
+GoodTab.CreateSlider("Jump Power", 50, 300, function(val)
+    print("[Good] Setting JumpPower to:", val)
+    local plr = game.Players.LocalPlayer
+    if plr and plr.Character and plr.Character:FindFirstChild("Humanoid") then
+        plr.Character.Humanoid.JumpPower = val
+    end
 end)
 
 -- Chat Logger Button
 GoodTab.CreateButton("Enable Chat Logger", function()
-    print("Chat logger enabled (placeholder).")
+    print("[Good] Chat Logger enabled")
+    -- TODO: hook into chat events
 end)
 
--- =====================
--- Universal Controls
--- =====================
+-- ========== Universal / Common ==========
+
+-- Keybind to toggle UI (placed on Good tab but works globally)
 GoodTab.CreateKeybind("Toggle UI", Enum.KeyCode.RightAlt, function()
     Library:ToggleUI()
 end)
