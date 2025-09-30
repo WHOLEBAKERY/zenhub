@@ -1,97 +1,218 @@
--- zenscript
--- Load your custom library from zenlib
+-- zenscript 3-tab UI
 local Library = loadstring(game:HttpGet("https://raw.githubusercontent.com/WHOLEBAKERY/zenlib/refs/heads/main/zenlib"))()
 
--- Create Main Window
 local Window = Library.Window("Zenscript UI")
 
--- Create Tabs
-local BadTab = Window.CreateTab("Bad")
-local GoodTab = Window.CreateTab("Good")
+local Players = game:GetService("Players")
+local UIS = game:GetService("UserInputService")
+local player = Players.LocalPlayer
+local playerGui = player:WaitForChild("PlayerGui")
 
--- ========== BAD TAB ==========
+local screenGui = Instance.new("ScreenGui")
+screenGui.Name = "SafeZoneGUI"
+screenGui.ResetOnSpawn = false
+screenGui.Parent = playerGui
+screenGui.ZIndexBehavior = Enum.ZIndexBehavior.Sibling
 
-BadTab.CreateDivider("Dangerous Features")
+local active, savedCF = false, nil
+local platform, walls, props = nil, {}, {}
 
--- ESP Toggle
-BadTab.CreateToggle("ESP", function(state)
+-- Safe Zone Helper Functions
+local function clearZone()
+    if platform then platform:Destroy() platform = nil end
+    for _, p in ipairs(walls) do p:Destroy() end
+    for _, p in ipairs(props) do p:Destroy() end
+    walls, props = {}, {}
+end
+
+local function buildCourtyard(y, size, wallH)
+    local half = size/2
+    platform = Instance.new("Part")
+    platform.Name = "SZFloor"
+    platform.Size = Vector3.new(size,1,size)
+    platform.CFrame = CFrame.new(0,y,0)
+    platform.Anchored = true
+    platform.CanCollide = true
+    platform.Transparency = 1
+    platform.Parent = workspace
+
+    -- Walls
+    for _, d in ipairs({
+        {size,wallH,2,0,y+wallH/2,half},
+        {size,wallH,2,0,y+wallH/2,-half},
+        {2,wallH,size,half,y+wallH/2,0},
+        {2,wallH,size,-half,y+wallH/2,0},
+    }) do
+        local w = Instance.new("Part")
+        w.Size = Vector3.new(d[1],d[2],d[3])
+        w.CFrame = CFrame.new(d[4],d[5],d[6])
+        w.Anchored = true
+        w.CanCollide = true
+        w.Transparency = 1
+        w.Parent = workspace
+        table.insert(walls, w)
+    end
+
+    -- Props, fire, trees, flowers, etc. (original Safe Zone logic)
+    -- For brevity, you can include your full courtyard code here if needed
+end
+
+-- ======================
+-- Tab 1: Quick Util
+-- ======================
+local QuickTab = Window.CreateTab("Quick Util")
+QuickTab.CreateDivider("Common Hacks Here")
+
+-- Placeholder: Infinite Jump Toggle
+QuickTab.CreateToggle("Infinite Jump", function(state)
     if state then
-        print("[Bad] ESP enabled")
-        -- TODO: insert ESP enabling logic here
+        print("[Quick Util] Infinite Jump ON (placeholder)")
     else
-        print("[Bad] ESP disabled")
-        -- TODO: disable ESP logic
+        print("[Quick Util] Infinite Jump OFF (placeholder)")
     end
 end)
 
--- No Clip Toggle
-BadTab.CreateToggle("No Clip", function(state)
+-- Placeholder: Attach Button
+QuickTab.CreateButton("Attach", function()
+    print("[Quick Util] Attach button pressed (placeholder)")
+end)
+
+-- Safe Zone Button Toggle (full functionality)
+QuickTab.CreateToggle("Safe Zone Button", function(state)
     if state then
-        print("[Bad] No Clip enabled")
-        -- TODO: activate no-clip mode
+        -- Create draggable button if it doesn't exist
+        if not screenGui:FindFirstChild("DragButton") then
+            local btn = Instance.new("TextButton")
+            btn.Name = "DragButton"
+            btn.Size = UDim2.new(0,50,0,50)
+            btn.Position = UDim2.new(0.4,0,0.4,0)
+            btn.BackgroundColor3 = Color3.fromRGB(0,200,0)
+            btn.BackgroundTransparency = 0.5
+            btn.BorderSizePixel = 0
+            btn.Text = ""
+            btn.Active = true
+            btn.Draggable = true
+            btn.ZIndex = 10
+            btn.Parent = screenGui
+
+            local label = Instance.new("TextLabel", btn)
+            label.Size = UDim2.new(1,0,1,0)
+            label.Position = UDim2.new(0,0,0,0)
+            label.BackgroundTransparency = 1
+            label.Text = "S"
+            label.Font = Enum.Font.SourceSansBold
+            label.TextSize = 24
+            label.TextColor3 = Color3.new(1,1,1)
+            label.Active = false
+            label.Selectable = false
+            label.ZIndex = 11
+
+            -- Button click: Safe Zone build/destroy
+            btn.MouseButton1Click:Connect(function()
+                local char = player.Character
+                local hrp = char and char:FindFirstChild("HumanoidRootPart")
+                if not hrp then return end
+
+                if not active then
+                    savedCF = hrp.CFrame
+                    buildCourtyard(1000,80,25)
+                    hrp.CFrame = CFrame.new(0,1005,0)
+                    active = true
+                else
+                    if savedCF then hrp.CFrame = savedCF end
+                    clearZone()
+                    active = false
+                end
+            end)
+
+            -- Dragging logic
+            local dragging, dragInput, dragStart, startPos
+            btn.InputBegan:Connect(function(inp)
+                if inp.UserInputType == Enum.UserInputType.Touch or inp.UserInputType == Enum.UserInputType.MouseButton1 then
+                    dragging, dragStart, startPos = true, inp.Position, btn.Position
+                    inp.Changed:Connect(function()
+                        if inp.UserInputState == Enum.UserInputState.End then
+                            dragging = false
+                        end
+                    end)
+                end
+            end)
+
+            btn.InputChanged:Connect(function(inp)
+                if inp.UserInputType == Enum.UserInputType.Touch or inp.UserInputType == Enum.UserInputType.MouseMovement then
+                    dragInput = inp
+                end
+            end)
+
+            UIS.InputChanged:Connect(function(inp)
+                if inp == dragInput and dragging then
+                    local delta = inp.Position - dragStart
+                    btn.Position = UDim2.new(
+                        startPos.X.Scale, startPos.X.Offset + delta.X,
+                        startPos.Y.Scale, startPos.Y.Offset + delta.Y
+                    )
+                end
+            end)
+        end
     else
-        print("[Bad] No Clip disabled")
-        -- TODO: deactivate no-clip mode
+        -- Remove button
+        local btn = screenGui:FindFirstChild("DragButton")
+        if btn then btn:Destroy() end
     end
 end)
 
--- Speed Slider
-BadTab.CreateSlider("Speed", 16, 200, function(val)
-    print("[Bad] Setting WalkSpeed to:", val)
-    local plr = game.Players.LocalPlayer
-    if plr and plr.Character and plr.Character:FindFirstChild("Humanoid") then
-        plr.Character.Humanoid.WalkSpeed = val
-    end
-end)
-
--- Kill/Crash Button (for testing)
-BadTab.CreateButton("Crash Self", function()
-    print("[Bad] Crash Self button pressed")
-    -- Example “crash” code:
-    -- while true do end
-end)
-
--- ========== GOOD TAB ==========
-
-GoodTab.CreateDivider("Utilities & Safe Stuff")
-
--- Rejoin Server Button
-GoodTab.CreateButton("Rejoin Server", function()
-    print("[Good] Rejoining server …")
-    local TeleportService = game:GetService("TeleportService")
-    local p = game.Players.LocalPlayer
-    TeleportService:Teleport(game.PlaceId, p)
-end)
-
--- FPS Toggle (placeholder)
-GoodTab.CreateToggle("Show FPS", function(state)
+-- Placeholder: No Clip Toggle
+QuickTab.CreateToggle("No Clip", function(state)
     if state then
-        print("[Good] FPS display ON")
-        -- TODO: show FPS overlay
+        print("[Quick Util] No Clip ON (placeholder)")
     else
-        print("[Good] FPS display OFF")
-        -- TODO: hide FPS overlay
+        print("[Quick Util] No Clip OFF (placeholder)")
     end
 end)
 
--- Jump Power Slider
-GoodTab.CreateSlider("Jump Power", 50, 300, function(val)
-    print("[Good] Setting JumpPower to:", val)
-    local plr = game.Players.LocalPlayer
-    if plr and plr.Character and plr.Character:FindFirstChild("Humanoid") then
-        plr.Character.Humanoid.JumpPower = val
+-- ======================
+-- Tab 2: Zenith
+-- ======================
+local ZenithTab = Window.CreateTab("Zenith")
+ZenithTab.CreateDivider("Zenith Hacks")
+
+-- Placeholder: Speed Toggle
+ZenithTab.CreateToggle("Speed", function(state)
+    if state then
+        print("[Zenith] Speed ON (placeholder)")
+    else
+        print("[Zenith] Speed OFF (placeholder)")
     end
 end)
 
--- Chat Logger Button
-GoodTab.CreateButton("Enable Chat Logger", function()
-    print("[Good] Chat Logger enabled")
-    -- TODO: hook into chat events
+-- Placeholder: Freeze Button
+ZenithTab.CreateButton("Freeze", function()
+    print("[Zenith] Freeze button pressed (placeholder)")
 end)
 
--- ========== Universal / Common ==========
+-- Placeholder: ESP Toggle
+ZenithTab.CreateToggle("ESP", function(state)
+    if state then
+        print("[Zenith] ESP ON (placeholder)")
+    else
+        print("[Zenith] ESP OFF (placeholder)")
+    end
+end)
 
--- Keybind to toggle UI (placed on Good tab but works globally)
-GoodTab.CreateKeybind("Toggle UI", Enum.KeyCode.RightAlt, function()
+-- ======================
+-- Tab 3: Ink Game
+-- ======================
+local InkTab = Window.CreateTab("Ink Game")
+InkTab.CreateDivider("Game Utilities")
+
+-- Placeholder: Teleport Button
+InkTab.CreateButton("Teleport", function()
+    print("[Ink Game] Teleport button pressed (placeholder)")
+end)
+
+-- ======================
+-- UI Toggle Keybind
+-- ======================
+ZenithTab.CreateKeybind("Toggle UI", Enum.KeyCode.RightAlt, function()
     Library:ToggleUI()
 end)
