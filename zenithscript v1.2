@@ -1,141 +1,126 @@
--- KR4K Demo: Infinite Jump + Noclip
--- Place this LocalScript in StarterPlayerScripts of your OWN test place (Studio or a private game)
--- Warning: Use only in games you own for testing. Don't use in other people's games.
+-- LocalScript (StarterGui)
 
-local HttpService = game:GetService("HttpService")
 local Players = game:GetService("Players")
-local RunService = game:GetService("RunService")
 local UserInputService = game:GetService("UserInputService")
 
 local player = Players.LocalPlayer
+local playerGui = player:WaitForChild("PlayerGui")
 
--- Load KR4K safely
+-- ScreenGui
+local screenGui = Instance.new("ScreenGui")
+screenGui.Name = "KaiUI"
+screenGui.ResetOnSpawn = false
+screenGui.Parent = playerGui
+
+-- Blue square (container)
+local box = Instance.new("Frame")
+box.Name = "BlueBox"
+box.Size = UDim2.new(0, 50, 0, 50) -- smaller size
+box.Position = UDim2.new(0.1, 0, 0.15, 0)
+box.BackgroundColor3 = Color3.fromRGB(37, 99, 235) -- blue
+box.BackgroundTransparency = 0.25
+box.BorderSizePixel = 0
+box.Active = true -- important for input
+box.Parent = screenGui
+
+-- Rounded corners
+local corner = Instance.new("UICorner")
+corner.CornerRadius = UDim.new(0, 6)
+corner.Parent = box
+
+-- The black "Z" text
+local zLabel = Instance.new("TextLabel")
+zLabel.Name = "ZLabel"
+zLabel.Size = UDim2.new(1, 0, 1, 0)
+zLabel.Position = UDim2.new(0, 0, 0, 0)
+zLabel.BackgroundTransparency = 1
+zLabel.Text = "Z"
+zLabel.TextColor3 = Color3.fromRGB(0, 0, 0) -- black
+zLabel.Font = Enum.Font.SourceSansBold
+zLabel.TextScaled = true
+zLabel.TextWrapped = true
+zLabel.Parent = box
+
+-- === Your KR4K Library Window ===
 local success, Library = pcall(function()
-    return loadstring(game:HttpGet("https://raw.githubusercontent.com/stysscythe/script/main/LibTest.lua"))()
+	return loadstring(game:HttpGet("https://raw.githubusercontent.com/stysscythe/script/main/LibTest.lua"))()
 end)
 
-if not success or not Library then
-    warn("Failed to load KR4K library. If you're in Studio enable HTTP or paste the library locally.")
-    return
+local kr4kWindow
+if success and Library then
+	-- Create the KR4K window centered
+	kr4kWindow = Library.Window("KR4K Demo")
+	-- Optional test tab
+	local Tab = kr4kWindow.CreateTab("Playtests")
+	Tab.CreateLabel("Hello from KR4K!")
+
+	-- Center the UI (KR4K usually makes its own ScreenGui, so centering depends on that lib)
+	-- This trick works if the library exposes ToggleUI:
+	Library:ToggleUI(true) -- ensure it's visible at start
 end
 
-local Window = Library.Window("KR4K Demo")
-local Tab = Window.CreateTab("Playtests")
-
--- INF JUMP
-local infJumpEnabled = false
-local function onJumpRequest()
-    local char = player.Character
-    if not char then return end
-    local humanoid = char:FindFirstChildOfClass("Humanoid")
-    if humanoid and infJumpEnabled then
-        -- Force a jump state on each JumpRequest (works client-side in Studio / local testing)
-        humanoid:ChangeState(Enum.HumanoidStateType.Jumping)
-    end
+-- === Z Box Toggle Logic ===
+local uiVisible = true
+local function toggleKR4K()
+	if not kr4kWindow then return end
+	uiVisible = not uiVisible
+	Library:ToggleUI() -- KR4K has this function built in
 end
 
-local jumpConn
-Tab.CreateToggle("Infinite Jump (TEST ONLY)", function(state)
-    infJumpEnabled = state
-    print("[KR4K] Infinite Jump:", state and "ON" or "OFF")
-
-    if state then
-        -- connect JumpRequest once
-        if not jumpConn then
-            jumpConn = UserInputService.JumpRequest:Connect(onJumpRequest)
-        end
-    else
-        if jumpConn then
-            jumpConn:Disconnect()
-            jumpConn = nil
-        end
-    end
+box.InputBegan:Connect(function(input)
+	if input.UserInputType == Enum.UserInputType.MouseButton1 then
+		if UserInputService:IsKeyDown(Enum.KeyCode.LeftShift) then
+			-- Shift + click to drag
+		else
+			-- Normal click = toggle window
+			toggleKR4K()
+		end
+	end
 end)
 
--- NOCLIP
-local noclipEnabled = false
--- We'll store previous CanCollide states so we can restore them when turning off
-local previousCanCollide = {}
+-- === Dragging logic for the Z box ===
+local dragging, dragInput, dragStart, startPos
 
-local function setNoclipForCharacter(char, enable)
-    if not char then return end
-    -- on enable: store existing CanCollide values and set false
-    if enable then
-        previousCanCollide[char] = {}
-        for _, part in ipairs(char:GetDescendants()) do
-            if part:IsA("BasePart") then
-                previousCanCollide[char][part] = part.CanCollide
-                part.CanCollide = false
-            end
-        end
-    else
-        -- restore stored values (if any)
-        local map = previousCanCollide[char]
-        if map then
-            for part, val in pairs(map) do
-                -- make sure part still exists
-                if part and part.Parent then
-                    pcall(function() part.CanCollide = val end)
-                end
-            end
-            previousCanCollide[char] = nil
-        else
-            -- fallback: try to set CanCollide = true for all BaseParts
-            for _, part in ipairs(char:GetDescendants()) do
-                if part:IsA("BasePart") then
-                    pcall(function() part.CanCollide = true end)
-                end
-            end
-        end
-    end
+local function update(input)
+	local delta = input.Position - dragStart
+	local newPos = UDim2.new(
+		startPos.X.Scale,
+		startPos.X.Offset + delta.X,
+		startPos.Y.Scale,
+		startPos.Y.Offset + delta.Y
+	)
+
+	-- keep inside screen
+	local viewport = workspace.CurrentCamera.ViewportSize
+	local x = math.clamp(newPos.X.Offset, 0, viewport.X - box.AbsoluteSize.X)
+	local y = math.clamp(newPos.Y.Offset, 0, viewport.Y - box.AbsoluteSize.Y)
+	box.Position = UDim2.new(0, x, 0, y)
 end
 
--- ensure new characters are handled
-local function onCharacterAdded(char)
-    if noclipEnabled then
-        -- small delay for parts to exist
-        task.defer(function()
-            setNoclipForCharacter(char, true)
-        end)
-    end
-end
-
-player.CharacterAdded:Connect(onCharacterAdded)
-
--- Keep noclip enforced each frame while enabled (helps if physics resets collisions)
-local noclipSteppedConn
-Tab.CreateToggle("Noclip (TEST ONLY)", function(state)
-    noclipEnabled = state
-    print("[KR4K] Noclip:", state and "ON" or "OFF")
-
-    local char = player.Character
-    if state then
-        if char then setNoclipForCharacter(char, true) end
-        -- capture future characters via CharacterAdded already connected above
-        if not noclipSteppedConn then
-            noclipSteppedConn = RunService.Heartbeat:Connect(function()
-                local c = player.Character
-                if c then
-                    for _, part in ipairs(c:GetDescendants()) do
-                        if part:IsA("BasePart") then
-                            -- keep CanCollide false while noclip enabled
-                            if part.CanCollide ~= false then
-                                pcall(function() part.CanCollide = false end)
-                            end
-                        end
-                    end
-                end
-            end)
-        end
-    else
-        -- disable
-        if noclipSteppedConn then
-            noclipSteppedConn:Disconnect()
-            noclipSteppedConn = nil
-        end
-        if char then setNoclipForCharacter(char, false) end
-    end
+box.InputBegan:Connect(function(input)
+	if input.UserInputType == Enum.UserInputType.MouseButton1 then
+		if UserInputService:IsKeyDown(Enum.KeyCode.LeftShift) then
+			-- Begin dragging only if holding Shift
+			dragging = true
+			dragStart = input.Position
+			startPos = box.Position
+			input.Changed:Connect(function()
+				if input.UserInputState == Enum.UserInputState.End then
+					dragging = false
+				end
+			end)
+		end
+	end
 end)
 
--- Optional: quick instructions label
-Tab.CreateLabel("Note: This demo is for testing in Studio / your own game only.")
+box.InputChanged:Connect(function(input)
+	if input.UserInputType == Enum.UserInputType.MouseMovement then
+		dragInput = input
+	end
+end)
+
+UserInputService.InputChanged:Connect(function(input)
+	if dragging and input == dragInput then
+		update(input)
+	end
+end)
