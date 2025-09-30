@@ -1,51 +1,55 @@
 -- LocalScript (StarterPlayerScripts or StarterGui)
--- Make sure you have HttpEnabled = true
 
--- Load ZenScript library
+-- Load the fixed ZenScript library
 local Library = loadstring(game:HttpGet("https://raw.githubusercontent.com/WHOLEBAKERY/zenlib/refs/heads/main/zenlib"))()
 
--- Create main window
-local Tabs, MainWindow = Library:Window("ZenScript")
+-- Create the main window
+Library:Window("ZenScript")
 
 -- =====================
--- First Tab: Zone
+-- Tab 1: Zone
 -- =====================
-local ZoneTab = Tabs:CreateTab("Zone")
+local ZoneTab = Library.CreateTab("Zone")
 
--- Infinite Jump Toggle
+-- Infinite Jump
 ZoneTab:CreateToggle("Infinite Jump", function(state)
     if state then
+        _G.InfJumpEnabled = true
         game:GetService("UserInputService").JumpRequest:Connect(function()
-            game.Players.LocalPlayer.Character:FindFirstChildOfClass("Humanoid").Jump = true
+            if _G.InfJumpEnabled then
+                local plr = game.Players.LocalPlayer
+                local hum = plr.Character and plr.Character:FindFirstChildOfClass("Humanoid")
+                if hum then
+                    hum.Jump = true
+                end
+            end
         end)
     else
-        -- To disable, easiest is to reload the character (simple approach)
-        -- or implement a flag check
-        print("Infinite Jump Disabled")
+        _G.InfJumpEnabled = false
     end
 end)
 
--- No Clip Toggle
+-- No Clip
 local noclipEnabled = false
 ZoneTab:CreateToggle("No Clip", function(state)
     noclipEnabled = state
 end)
 
--- Heartbeat loop for NoClip
+-- Heartbeat for NoClip
 game:GetService("RunService").Stepped:Connect(function()
     if noclipEnabled then
-        local character = game.Players.LocalPlayer.Character
-        if character then
-            for _, part in pairs(character:GetChildren()) do
+        local char = game.Players.LocalPlayer.Character
+        if char then
+            for _, part in pairs(char:GetChildren()) do
                 if part:IsA("BasePart") then
                     part.CanCollide = false
                 end
             end
         end
     else
-        local character = game.Players.LocalPlayer.Character
-        if character then
-            for _, part in pairs(character:GetChildren()) do
+        local char = game.Players.LocalPlayer.Character
+        if char then
+            for _, part in pairs(char:GetChildren()) do
                 if part:IsA("BasePart") then
                     part.CanCollide = true
                 end
@@ -55,13 +59,12 @@ game:GetService("RunService").Stepped:Connect(function()
 end)
 
 -- =====================
--- Second Tab: Shane
+-- Tab 2: Shane
 -- =====================
-local ShaneTab = Tabs:CreateTab("Shane")
+local ShaneTab = Library.CreateTab("Shane")
 
 -- ESP Button
 ShaneTab:CreateButton("ESP", function()
-    -- Simple placeholder ESP
     for _, player in pairs(game.Players:GetPlayers()) do
         if player ~= game.Players.LocalPlayer then
             local highlight = Instance.new("Highlight")
@@ -76,12 +79,13 @@ end)
 
 -- Float Button
 ShaneTab:CreateButton("Float", function()
-    local player = game.Players.LocalPlayer
-    local char = player.Character
+    local plr = game.Players.LocalPlayer
+    local char = plr.Character
     if char then
         local root = char:FindFirstChild("HumanoidRootPart")
-        if root then
+        if root and not root:FindFirstChild("FloatForce") then
             local bodyForce = Instance.new("BodyForce")
+            bodyForce.Name = "FloatForce"
             bodyForce.Force = Vector3.new(0, workspace.Gravity * root:GetMass(), 0)
             bodyForce.Parent = root
             print("Float Enabled")
