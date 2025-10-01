@@ -21,7 +21,6 @@ screenGui.ZIndexBehavior = Enum.ZIndexBehavior.Sibling
 local active, savedCF = false, nil
 local platform, walls, props = nil, {}, {}
 
--- Safe Zone Helper Functions
 local function clearZone()
     if platform then platform:Destroy() platform = nil end
     for _, p in ipairs(walls) do p:Destroy() end
@@ -39,7 +38,6 @@ local function buildCourtyard(y, size, wallH)
     platform.CanCollide = true
     platform.Transparency = 1
     platform.Parent = workspace
-    -- Walls
     for _, d in ipairs({
         {size,wallH,2,0,y+wallH/2,half},
         {size,wallH,2,0,y+wallH/2,-half},
@@ -55,13 +53,13 @@ local function buildCourtyard(y, size, wallH)
         w.Parent = workspace
         table.insert(walls, w)
     end
-    -- Props, fire, trees, flowers, etc. can go here
 end
 
 -- ======================
 -- Functional Variables
 -- ======================
 local noclipEnabled = false
+local noclipConnection = nil
 local infJumpEnabled = false
 local superSpeedEnabled = false
 local normalWalkSpeed = 16
@@ -73,18 +71,15 @@ local superSpeedValue = 50
 local QuickTab = Window.CreateTab("Quick Util")
 QuickTab.CreateDivider("Common Hacks Here")
 
--- Infinite Jump Toggle
 QuickTab.CreateToggle("Infinite Jump", function(state)
     infJumpEnabled = state
     print("[Quick Util] Infinite Jump:", state and "ON" or "OFF")
 end)
 
--- Attach Button placeholder
 QuickTab.CreateButton("Attach", function()
     print("[Quick Util] Attach button pressed (placeholder)")
 end)
 
--- Safe Zone Button Toggle
 QuickTab.CreateToggle("Safe Zone Button", function(state)
     if state then
         if not screenGui:FindFirstChild("DragButton") then
@@ -129,7 +124,6 @@ QuickTab.CreateToggle("Safe Zone Button", function(state)
                 end
             end)
 
-            -- Dragging logic
             local dragging, dragInput, dragStart, startPos
             btn.InputBegan:Connect(function(inp)
                 if inp.UserInputType == Enum.UserInputType.Touch or inp.UserInputType == Enum.UserInputType.MouseButton1 then
@@ -160,10 +154,30 @@ QuickTab.CreateToggle("Safe Zone Button", function(state)
     end
 end)
 
--- No Clip Toggle
+-- ✅ Fixed No Clip Toggle
 QuickTab.CreateToggle("No Clip", function(state)
     noclipEnabled = state
     print("[Quick Util] No Clip:", state and "ON" or "OFF")
+
+    if state then
+        if not noclipConnection then
+            noclipConnection = RunService.Heartbeat:Connect(function()
+                local char = player.Character
+                if char then
+                    for _, part in pairs(char:GetDescendants()) do
+                        if part:IsA("BasePart") and part.CanCollide then
+                            part.CanCollide = false
+                        end
+                    end
+                end
+            end)
+        end
+    else
+        if noclipConnection then
+            noclipConnection:Disconnect()
+            noclipConnection = nil
+        end
+    end
 end)
 
 -- ======================
@@ -172,18 +186,15 @@ end)
 local ZenithTab = Window.CreateTab("Zenith")
 ZenithTab.CreateDivider("Zenith Hacks")
 
--- Super Speed Toggle
 ZenithTab.CreateToggle("Super Speed", function(state)
     superSpeedEnabled = state
     print("[Zenith] Super Speed:", state and "ON" or "OFF")
 end)
 
--- Freeze Button placeholder
 ZenithTab.CreateButton("Freeze", function()
     print("[Zenith] Freeze button pressed (placeholder)")
 end)
 
--- ESP Toggle placeholder
 ZenithTab.CreateToggle("ESP", function(state)
     print("[Zenith] ESP:", state and "ON (placeholder)" or "OFF (placeholder)")
 end)
@@ -194,7 +205,6 @@ end)
 local InkTab = Window.CreateTab("Ink Game")
 InkTab.CreateDivider("Game Utilities")
 
--- Teleport Button placeholder
 InkTab.CreateButton("Teleport", function()
     print("[Ink Game] Teleport button pressed (placeholder)")
 end)
@@ -209,25 +219,10 @@ end)
 -- ======================
 -- Functional Logic Loops
 -- ======================
--- Infinite Jump
 UIS.JumpRequest:Connect(function()
     if infJumpEnabled then
         local hum = player.Character and player.Character:FindFirstChildOfClass("Humanoid")
         if hum then hum:ChangeState(Enum.HumanoidStateType.Jumping) end
-    end
-end)
-
--- No Clip
-RunService.Stepped:Connect(function()
-    if noclipEnabled then
-        local char = player.Character
-        if char then
-            for _, part in pairs(char:GetDescendants()) do
-                if part:IsA("BasePart") then
-                    part.CanCollide = false
-                end
-            end
-        end
     end
 end)
 
@@ -236,7 +231,7 @@ RunService.RenderStepped:Connect(function()
     local hum = player.Character and player.Character:FindFirstChildOfClass("Humanoid")
     if hum then
         if superSpeedEnabled then
-            hum.WalkSpeed = 50
+            hum.WalkSpeed = superSpeedValue
         else
             hum.WalkSpeed = normalWalkSpeed
         end
