@@ -1,159 +1,244 @@
--- ZenScript UI Loader
+-- zenscript 3-tab UI with Safe Zone, No Clip, Infinite Jump, Super Speed
 local Library = loadstring(game:HttpGet("https://raw.githubusercontent.com/WHOLEBAKERY/zenlib/refs/heads/main/zenlib"))()
-local Window = Library.Window("ZenScript v1.0")
 
--- Services
-local UIS = game:GetService("UserInputService")
-local RS = game:GetService("RunService")
+local Window = Library.Window("Zenscript UI")
+
 local Players = game:GetService("Players")
-local LocalPlayer = Players.LocalPlayer
-local screenGui = Instance.new("ScreenGui", game.CoreGui)
+local UIS = game:GetService("UserInputService")
+local RunService = game:GetService("RunService")
+local player = Players.LocalPlayer
+local playerGui = player:WaitForChild("PlayerGui")
 
--- Vars
-local noclipConn
-local safeZoneParts = {}
-local savedCF
-local active = false
-local speedConn
-local walkSpeed = 50
+local screenGui = Instance.new("ScreenGui")
+screenGui.Name = "SafeZoneGUI"
+screenGui.ResetOnSpawn = false
+screenGui.Parent = playerGui
+screenGui.ZIndexBehavior = Enum.ZIndexBehavior.Sibling
 
--- Functions
-local function buildCourtyard(length,width,height)
-    local walls = {}
-    for i=1,4 do
-        local part = Instance.new("Part")
-        part.Size = (i % 2 == 0) and Vector3.new(length,height,1) or Vector3.new(1,height,width)
-        part.Anchored, part.CanCollide = true, true
-        part.Position = Vector3.new((i==1 and -length/2) or (i==2 and length/2) or 0,
-                                    1000+height/2,
-                                    (i==3 and -width/2) or (i==4 and width/2) or 0)
-        part.Parent = workspace
-        table.insert(walls, part)
-    end
-    local floor = Instance.new("Part")
-    floor.Size, floor.Anchored, floor.CanCollide = Vector3.new(length,1,width), true, true
-    floor.Position, floor.Parent = Vector3.new(0,999.5,0), workspace
-    table.insert(walls, floor)
-    safeZoneParts = walls
-end
+-- ======================
+-- Safe Zone Variables
+-- ======================
+local active, savedCF = false, nil
+local platform, walls, props = nil, {}, {}
 
+-- Safe Zone Helper Functions
 local function clearZone()
-    for _,p in ipairs(safeZoneParts) do
-        if p then p:Destroy() end
-    end
-    safeZoneParts = {}
+    if platform then platform:Destroy() platform = nil end
+    for _, p in ipairs(walls) do p:Destroy() end
+    for _, p in ipairs(props) do p:Destroy() end
+    walls, props = {}, {}
 end
 
--- TABS
+local function buildCourtyard(y, size, wallH)
+    local half = size/2
+    platform = Instance.new("Part")
+    platform.Name = "SZFloor"
+    platform.Size = Vector3.new(size,1,size)
+    platform.CFrame = CFrame.new(0,y,0)
+    platform.Anchored = true
+    platform.CanCollide = true
+    platform.Transparency = 1
+    platform.Parent = workspace
+    -- Walls
+    for _, d in ipairs({
+        {size,wallH,2,0,y+wallH/2,half},
+        {size,wallH,2,0,y+wallH/2,-half},
+        {2,wallH,size,half,y+wallH/2,0},
+        {2,wallH,size,-half,y+wallH/2,0},
+    }) do
+        local w = Instance.new("Part")
+        w.Size = Vector3.new(d[1],d[2],d[3])
+        w.CFrame = CFrame.new(d[4],d[5],d[6])
+        w.Anchored = true
+        w.CanCollide = true
+        w.Transparency = 1
+        w.Parent = workspace
+        table.insert(walls, w)
+    end
+    -- Props, fire, trees, flowers, etc. can go here
+end
+
+-- ======================
+-- Functional Variables
+-- ======================
+local noclipEnabled = false
+local infJumpEnabled = false
+local superSpeedEnabled = false
+local normalWalkSpeed = 16
+local superSpeedValue = 50
+
+-- ======================
+-- Tab 1: Quick Util
+-- ======================
 local QuickTab = Window.CreateTab("Quick Util")
-QuickTab.CreateDivider("Common Hacks")
+QuickTab.CreateDivider("Common Hacks Here")
 
--- Inf Jump (placeholder)
+-- Infinite Jump Toggle
 QuickTab.CreateToggle("Infinite Jump", function(state)
-    print("Inf Jump placeholder: "..tostring(state))
+    infJumpEnabled = state
+    print("[Quick Util] Infinite Jump:", state and "ON" or "OFF")
 end)
 
--- Attach button (placeholder)
+-- Attach Button placeholder
 QuickTab.CreateButton("Attach", function()
-    print("Attach placeholder clicked")
+    print("[Quick Util] Attach button pressed (placeholder)")
 end)
 
--- Safe Zone Toggle
-QuickTab.CreateToggle("Safe Zone", function(state)
-    local char = LocalPlayer.Character
-    local hrp = char and char:FindFirstChild("HumanoidRootPart")
-    if not hrp then return end
-
+-- Safe Zone Button Toggle
+QuickTab.CreateToggle("Safe Zone Button", function(state)
     if state then
-        savedCF = hrp.CFrame
-        buildCourtyard(1000,80,25)
-        hrp.CFrame = CFrame.new(0,1005,0)
-        active = true
+        if not screenGui:FindFirstChild("DragButton") then
+            local btn = Instance.new("TextButton")
+            btn.Name = "DragButton"
+            btn.Size = UDim2.new(0,50,0,50)
+            btn.Position = UDim2.new(0.4,0,0.4,0)
+            btn.BackgroundColor3 = Color3.fromRGB(0,200,0)
+            btn.BackgroundTransparency = 0.5
+            btn.BorderSizePixel = 0
+            btn.Text = ""
+            btn.Active = true
+            btn.Draggable = true
+            btn.ZIndex = 10
+            btn.Parent = screenGui
+
+            local label = Instance.new("TextLabel", btn)
+            label.Size = UDim2.new(1,0,1,0)
+            label.Position = UDim2.new(0,0,0,0)
+            label.BackgroundTransparency = 1
+            label.Text = "S"
+            label.Font = Enum.Font.SourceSansBold
+            label.TextSize = 24
+            label.TextColor3 = Color3.new(1,1,1)
+            label.Active = false
+            label.Selectable = false
+            label.ZIndex = 11
+
+            btn.MouseButton1Click:Connect(function()
+                local char = player.Character
+                local hrp = char and char:FindFirstChild("HumanoidRootPart")
+                if not hrp then return end
+                if not active then
+                    savedCF = hrp.CFrame
+                    buildCourtyard(1000,80,25)
+                    hrp.CFrame = CFrame.new(0,1005,0)
+                    active = true
+                else
+                    if savedCF then hrp.CFrame = savedCF end
+                    clearZone()
+                    active = false
+                end
+            end)
+
+            -- Dragging logic
+            local dragging, dragInput, dragStart, startPos
+            btn.InputBegan:Connect(function(inp)
+                if inp.UserInputType == Enum.UserInputType.Touch or inp.UserInputType == Enum.UserInputType.MouseButton1 then
+                    dragging, dragStart, startPos = true, inp.Position, btn.Position
+                    inp.Changed:Connect(function()
+                        if inp.UserInputState == Enum.UserInputState.End then dragging = false end
+                    end)
+                end
+            end)
+            btn.InputChanged:Connect(function(inp)
+                if inp.UserInputType == Enum.UserInputType.Touch or inp.UserInputType == Enum.UserInputType.MouseMovement then
+                    dragInput = inp
+                end
+            end)
+            UIS.InputChanged:Connect(function(inp)
+                if inp == dragInput and dragging then
+                    local delta = inp.Position - dragStart
+                    btn.Position = UDim2.new(
+                        startPos.X.Scale, startPos.X.Offset + delta.X,
+                        startPos.Y.Scale, startPos.Y.Offset + delta.Y
+                    )
+                end
+            end)
+        end
     else
-        if savedCF then hrp.CFrame = savedCF end
-        clearZone()
-        active = false
+        local btn = screenGui:FindFirstChild("DragButton")
+        if btn then btn:Destroy() end
     end
 end)
 
--- No Clip Fixed
+-- No Clip Toggle
 QuickTab.CreateToggle("No Clip", function(state)
-    if state then
-        if not noclipConn then
-            noclipConn = RS.Stepped:Connect(function()
-                if LocalPlayer.Character then
-                    for _,v in pairs(LocalPlayer.Character:GetDescendants()) do
-                        if v:IsA("BasePart") and v.CanCollide then
-                            v.CanCollide = false
-                        end
-                    end
-                end
-            end)
-        end
-    else
-        if noclipConn then
-            noclipConn:Disconnect()
-            noclipConn = nil
-        end
-    end
+    noclipEnabled = state
+    print("[Quick Util] No Clip:", state and "ON" or "OFF")
 end)
 
--- Zenith Tab
+-- ======================
+-- Tab 2: Zenith
+-- ======================
 local ZenithTab = Window.CreateTab("Zenith")
-ZenithTab.CreateDivider("Core Features")
+ZenithTab.CreateDivider("Zenith Hacks")
 
--- SuperSpeed Toggle + Slider
+-- Super Speed Toggle
 ZenithTab.CreateToggle("Super Speed", function(state)
-    if state then
-        if not speedConn then
-            speedConn = RS.Stepped:Connect(function()
-                if LocalPlayer.Character and LocalPlayer.Character:FindFirstChild("Humanoid") then
-                    LocalPlayer.Character.Humanoid.WalkSpeed = walkSpeed
-                end
-            end)
-        end
-    else
-        if speedConn then
-            speedConn:Disconnect()
-            speedConn = nil
-        end
-        if LocalPlayer.Character and LocalPlayer.Character:FindFirstChild("Humanoid") then
-            LocalPlayer.Character.Humanoid.WalkSpeed = 16 -- reset default
-        end
-    end
+    superSpeedEnabled = state
+    print("[Zenith] Super Speed:", state and "ON" or "OFF")
 end)
 
-ZenithTab.CreateSlider("Adjust Speed", 16, 150, function(val)
-    walkSpeed = val
-end)
-
--- Freeze button (placeholder)
+-- Freeze Button placeholder
 ZenithTab.CreateButton("Freeze", function()
-    print("Freeze placeholder clicked")
+    print("[Zenith] Freeze button pressed (placeholder)")
 end)
 
--- Ink Game Tab
+-- ESP Toggle placeholder
+ZenithTab.CreateToggle("ESP", function(state)
+    print("[Zenith] ESP:", state and "ON (placeholder)" or "OFF (placeholder)")
+end)
+
+-- ======================
+-- Tab 3: Ink Game
+-- ======================
 local InkTab = Window.CreateTab("Ink Game")
 InkTab.CreateDivider("Game Utilities")
 
--- Teleport Button (Click anywhere once, menu stays hidden)
+-- Teleport Button placeholder
 InkTab.CreateButton("Teleport", function()
-    Library:ToggleUI() -- hide menu
-    local conn
-    conn = UIS.InputBegan:Connect(function(input)
-        if input.UserInputType == Enum.UserInputType.MouseButton1 then
-            local mouse = LocalPlayer:GetMouse()
-            if mouse.Target then
-                local pos = mouse.Hit + Vector3.new(0,3,0)
-                if LocalPlayer.Character and LocalPlayer.Character:FindFirstChild("HumanoidRootPart") then
-                    LocalPlayer.Character.HumanoidRootPart.CFrame = CFrame.new(pos.p)
-                end
-            end
-            conn:Disconnect()
-            -- Menu will NOT auto-open again; must toggle manually
-        end
-    end)
+    print("[Ink Game] Teleport button pressed (placeholder)")
 end)
 
--- Placeholder Teleport label
-InkTab.CreateLabel("Click Teleport, then click a spot in the game world.")
+-- ======================
+-- UI Toggle Keybind
+-- ======================
+ZenithTab.CreateKeybind("Toggle UI", Enum.KeyCode.RightAlt, function()
+    Library:ToggleUI()
+end)
+
+-- ======================
+-- Functional Logic Loops
+-- ======================
+-- Infinite Jump
+UIS.JumpRequest:Connect(function()
+    if infJumpEnabled then
+        local hum = player.Character and player.Character:FindFirstChildOfClass("Humanoid")
+        if hum then hum:ChangeState(Enum.HumanoidStateType.Jumping) end
+    end
+end)
+
+-- No Clip
+RunService.Stepped:Connect(function()
+    if noclipEnabled then
+        local char = player.Character
+        if char then
+            for _, part in pairs(char:GetDescendants()) do
+                if part:IsA("BasePart") then
+                    part.CanCollide = false
+                end
+            end
+        end
+    end
+end)
+
+-- Super Speed
+RunService.RenderStepped:Connect(function()
+    local hum = player.Character and player.Character:FindFirstChildOfClass("Humanoid")
+    if hum then
+        if superSpeedEnabled then
+            hum.WalkSpeed = 50
+        else
+            hum.WalkSpeed = normalWalkSpeed
+        end
+    end
+end)
